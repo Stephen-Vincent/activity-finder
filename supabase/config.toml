@@ -42,5 +42,23 @@ enabled = false
 [auth.external.google]
 enabled = false
 
-[functions]
+# Edge Functions. Each function gets its own block named after its folder
+# under supabase/functions/. verify_jwt = true rejects unauthenticated calls
+# at the gateway; turn it off for webhooks and public redirects.
+
+[functions.stripe-webhook]
+# Stripe signs webhooks with Stripe-Signature, not a Supabase JWT.
+# The function itself verifies the signature in code.
+verify_jwt = false
+
+[functions.booking-redirect]
+# Anonymous parents may follow affiliate links before signing in.
+verify_jwt = false
+
+[functions.daily-digest]
+# Triggered by the scheduler, not a user.
+verify_jwt = false
+
+[functions.create-subscription]
+# Called by the mobile app on behalf of an authenticated user — keep auth on.
 verify_jwt = true

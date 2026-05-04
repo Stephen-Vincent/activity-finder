@@ -15,7 +15,7 @@
     "mobile:android": "npm --workspace apps/mobile run android",
     "mobile:lint": "npm --workspace apps/mobile run lint",
     "mobile:typecheck": "npm --workspace apps/mobile run typecheck",
-    "//supabase": "Supabase CLI passthroughs. Requires `supabase` CLI installed globally.",
+    "//supabase": "Supabase CLI passthroughs. The CLI is a devDependency, so `npm install` brings it in and these scripts resolve it from node_modules/.bin.",
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
     "supabase:reset": "supabase db reset",
@@ -26,6 +26,7 @@
   },
   "devDependencies": {
     "prettier": "^3.2.5",
+    "supabase": "^2.98.1",
     "typescript": "^5.4.0"
   },
   "engines": {

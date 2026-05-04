@@ -9,3 +9,12 @@ Reference data and sample fixtures for local dev and staging.
 
 To load the sample venues locally, use `scripts/seed-venues.ts` (parses CSV,
 geocodes if lat/lng missing, inserts via the Supabase service role key).
+
+Notes for the seed-venues implementation:
+
+- The CSV omits a `currency` column. The schema requires `venues.currency NOT NULL`,
+  so derive it from `country_code`: `GB-NIR` → `GBP`, `IE` → `EUR`.
+- `categories` is a semicolon-separated list of category slugs. After upserting
+  the venue, look up category IDs by slug and upsert into `venue_categories`.
+- If `slug` is missing, generate one from `name` + `town` (lowercase, dashed,
+  ASCII-only). The schema treats `venues.slug` as `citext UNIQUE`.

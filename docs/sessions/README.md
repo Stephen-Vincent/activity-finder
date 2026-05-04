@@ -34,6 +34,7 @@ Keep entries short. A session log isn't a design doc — if something needs deep
 
 The most recent entry is the most useful. Newest first:
 
+- [2026-05-04 — Schema: tables, RLS, and RPCs](./2026-05-04-schema-2.md)
 - [2026-05-04 — Foundation: design, scaffold, first commit](./2026-05-04-foundation.md)
 
 (Add new entries to the top of this list as you write them.)

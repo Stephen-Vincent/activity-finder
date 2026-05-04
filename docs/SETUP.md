@@ -7,8 +7,8 @@
 - Watchman (macOS): `brew install watchman`
 - Xcode + iOS simulator (for iOS builds)
 - Android Studio + an emulator or device (for Android builds)
-- Supabase CLI: `brew install supabase/tap/supabase`
 - Docker Desktop (required by `supabase start`)
+- Supabase CLI is installed as a dev dependency by `npm install` (step 1 below) — no global install needed.
 - Optional: `tsx` for running TypeScript scripts (`npm i -g tsx`)
 
 ## 1. Clone and install
