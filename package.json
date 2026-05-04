@@ -1,0 +1,35 @@
+{
+  "//": "Root package.json — declares this as an npm workspaces monorepo. The mobile app lives in apps/mobile. supabase/ is not an npm workspace; it's managed by the Supabase CLI. Add apps/admin later when the venue web portal is built (Phase 3).",
+  "name": "activity-finder",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Family activity discovery app for Northern Ireland and the Republic of Ireland.",
+  "license": "SEE LICENSE IN LICENSE",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "//mobile": "Convenience proxies into the mobile workspace.",
+    "mobile": "npm --workspace apps/mobile run start",
+    "mobile:ios": "npm --workspace apps/mobile run ios",
+    "mobile:android": "npm --workspace apps/mobile run android",
+    "mobile:lint": "npm --workspace apps/mobile run lint",
+    "mobile:typecheck": "npm --workspace apps/mobile run typecheck",
+    "//supabase": "Supabase CLI passthroughs. Requires `supabase` CLI installed globally.",
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop",
+    "supabase:reset": "supabase db reset",
+    "supabase:migrate": "supabase db push",
+    "supabase:functions:serve": "supabase functions serve",
+    "//format": "Prettier across the whole repo.",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,sql}\""
+  },
+  "devDependencies": {
+    "prettier": "^3.2.5",
+    "typescript": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  }
+}

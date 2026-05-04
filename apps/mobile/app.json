@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "Activity Finder",
+    "slug": "activity-finder",
+    "scheme": "activityfinder",
+    "version": "0.0.1",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.activityfinder.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "We use your location to show activities near you.",
+        "NSPhotoLibraryUsageDescription": "Pick photos to add to your reviews."
+      }
+    },
+    "android": {
+      "package": "com.activityfinder.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "@rnmapbox/maps",
+      "@stripe/stripe-react-native"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

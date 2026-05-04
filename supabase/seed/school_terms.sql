@@ -1,0 +1,13 @@
+-- Seed: NI + ROI school terms and holidays for the next ~2 academic years.
+--
+-- Sources:
+--   NI: Education Authority Northern Ireland (eani.org.uk)
+--   ROI: Department of Education and Skills (gov.ie)
+--
+-- Insert pattern:
+--   insert into public.school_terms (region, term_name, starts_on, ends_on, is_holiday)
+--   values ('NI', 'Halloween Half-Term 2026', '2026-10-26', '2026-10-30', true);
+--
+-- Refresh annually via scripts/update-school-terms.ts.
+
+-- TODO: populate.

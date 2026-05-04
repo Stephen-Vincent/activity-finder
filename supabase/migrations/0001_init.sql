@@ -1,0 +1,31 @@
+-- Activity Finder — initial schema.
+--
+-- This migration is intentionally a stub. The full DDL is described in
+-- docs/DESIGN.md §7 and will be authored in a follow-up commit. When that
+-- happens, this file should:
+--   1. Enable extensions: postgis, pgcrypto, citext.
+--   2. Create enums: country_code, currency, price_band, indoor_outdoor,
+--      venue_status, venue_tier, plan_type, subscription_status.
+--   3. Create tables in dependency order: users, children, categories,
+--      venues, venue_categories, venue_owners, venue_photos, opening_hours,
+--      events, reviews, review_photos, favourites, plans, plan_items,
+--      subscriptions, bookings_clicks, promotions, school_terms, staff.
+--   4. Create indexes:
+--      - GiST on venues.location for PostGIS distance queries
+--      - btree on venues(country_code), venues(tier), venues(status)
+--      - btree on reviews(venue_id, created_at desc)
+--      - unique on favourites(user_id, venue_id)
+--   5. Create the `is_admin()` security-definer function.
+--   6. Enable RLS on every user-touchable table and add policies as per
+--      docs/DESIGN.md §7 "Row Level Security".
+--   7. Create RPCs:
+--      - venues_within(centre_lng, centre_lat, radius_m, filters, cursor)
+--      - claim_venue(venue_id, evidence)
+--
+-- Run order is alphabetical by filename so prefix new migrations as
+-- 0002_..., 0003_..., etc.
+
+-- TODO: implement.
+
+create extension if not exists "pgcrypto";
+-- create extension if not exists "postgis";  -- enable when you flip it on in Supabase dashboard

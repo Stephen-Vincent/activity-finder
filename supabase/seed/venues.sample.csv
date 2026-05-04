@@ -1,0 +1,6 @@
+name,country_code,town,postcode,lat,lng,price_band,indoor_outdoor,min_age,max_age,categories,website,description
+W5,GB-NIR,Belfast,BT1 3WP,54.6079,-5.9145,mid,indoor,2,17,"indoor;museum;day-trip",https://www.w5online.co.uk/,Award-winning interactive science and discovery centre at Odyssey Belfast.
+Pickie Family Fun Park,GB-NIR,Bangor,BT20 5BG,54.6650,-5.6685,low,outdoor,1,12,"outdoor;day-trip","https://www.ardsandnorthdown.gov.uk/pickie",Pedal-powered swans plus a mini train and play park on Bangor seafront.
+Streamvale Open Farm,GB-NIR,Belfast,BT5 7TU,54.5660,-5.8400,mid,outdoor,1,10,"outdoor;farm-park;day-trip",https://www.streamvalefarm.com/,Working dairy farm with petting animals and tractor rides.
+Imaginosity,IE,Sandyford,D18 P5K3,53.2701,-6.2287,mid,indoor,1,10,"indoor;museum","https://imaginosity.ie/",Children's museum in Sandyford with hands-on exhibits.
+Dublin Zoo,IE,Dublin,D08 WF88,53.3554,-6.3046,mid,outdoor,1,17,"outdoor;day-trip","https://www.dublinzoo.ie/",One of the world's oldest zoos and a Phoenix Park staple.

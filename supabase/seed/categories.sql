@@ -1,0 +1,19 @@
+-- Seed: categories taxonomy.
+-- Run after migrations. Idempotent — uses ON CONFLICT (slug) DO NOTHING.
+--
+-- Top-level categories first, then sub-categories. Keep slugs stable; they
+-- are referenced from app code and analytics.
+
+-- TODO: insert top-level + sub-categories. Sketch:
+--
+-- insert into public.categories (slug, name_en, parent_id) values
+--   ('indoor', 'Indoor', null),
+--   ('outdoor', 'Outdoor', null),
+--   ('day-trip', 'Day trip', null),
+--   ('classes', 'Kids classes', null),
+--   ('events', 'Events', null),
+--   ('eat', 'Family-friendly eats', null)
+-- on conflict (slug) do nothing;
+--
+-- Then sub-categories (soft-play, museum, farm-park, escape-room, etc.)
+-- referencing the parent slugs.
