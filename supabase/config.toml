@@ -26,7 +26,14 @@ file_size_limit = "50MiB"
 [auth]
 enabled = true
 site_url = "activityfinder://"
-additional_redirect_urls = ["activityfinder://auth-callback"]
+# Supabase only redirects magic-link emails to URLs on this list (plus site_url).
+# In production builds the redirect lands on `activityfinder://auth/callback`.
+# In dev with Expo Go the same call returns `exp://<lan-ip>:8081/--/auth/callback`,
+# so we allow the `exp://**` glob too. Tighten this for production later.
+additional_redirect_urls = [
+  "activityfinder://auth/callback",
+  "exp://**",
+]
 jwt_expiry = 3600
 enable_signup = true
 
@@ -34,6 +41,23 @@ enable_signup = true
 enable_signup = true
 double_confirm_changes = true
 enable_confirmations = false
+# Recent Supabase CLI versions ship a short default OTP expiry (~60s) which
+# is fine for SMS but a pain for email — by the time you switch to your inbox,
+# read the code, and type it in, it's already expired. 600 seconds (10 min)
+# is a reasonable balance for email OTPs in dev. Tighten in prod if you like.
+otp_expiry = 600
+
+# We use the 6-digit OTP code flow rather than magic links — the user gets the
+# code by email and types it into the app. This template renders the code
+# prominently. Supabase calls the file "magic_link" regardless of whether it
+# carries a link or a code.
+[auth.email.template.magic_link]
+subject = "Your Activity Finder sign-in code"
+# Path is resolved relative to where the `supabase` CLI is run, which is the
+# project root via the `npm run supabase:*` proxy scripts — so we prefix with
+# `supabase/`. Don't use `./` here; the CLI strips it and you get a confusing
+# "no such file" error.
+content_path = "supabase/templates/magic_link.html"
 
 # OAuth providers — keys live in .env, referenced here.
 [auth.external.apple]

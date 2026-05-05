@@ -35,9 +35,7 @@
       ]
     },
     "plugins": [
-      "expo-router",
-      "@rnmapbox/maps",
-      "@stripe/stripe-react-native"
+      "expo-router"
     ],
     "experiments": {
       "typedRoutes": true

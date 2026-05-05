@@ -1,0 +1,36 @@
+<!--
+  Sign-in email template — Activity Finder.
+
+  Despite the file being called "magic_link.html" (Supabase's naming, not ours),
+  this template doesn't actually show a magic link. We've moved to a six-digit
+  OTP code flow because deep-linking from email back into the app is fiddly,
+  especially in dev with Expo Go. The user types the code into the app and
+  we verify it with `supabase.auth.verifyOtp`.
+
+  Variables Supabase substitutes:
+    {{ .Token }}     — the 6-digit OTP code (use this!)
+    {{ .Email }}     — the address the email is being sent to
+    {{ .SiteURL }}   — `activityfinder://`
+    {{ .ConfirmationURL }} — the magic link URL (we don't use this)
+-->
+<!DOCTYPE html>
+<html>
+  <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background:#f7f8fa; margin:0; padding:32px;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px; margin:0 auto; background:#fff; border-radius:14px; padding:32px;">
+      <tr>
+        <td>
+          <h1 style="font-size:22px; color:#111; margin:0 0 16px 0;">Sign in to Activity Finder</h1>
+          <p style="font-size:15px; color:#444; line-height:1.5; margin:0 0 24px 0;">
+            Enter this code in the app to finish signing in:
+          </p>
+          <div style="font-size:36px; letter-spacing:8px; font-weight:700; color:#111; text-align:center; padding:20px; background:#f1f3f5; border-radius:10px; font-family:'SF Mono', Menlo, Consolas, monospace;">
+            {{ .Token }}
+          </div>
+          <p style="font-size:13px; color:#777; line-height:1.5; margin:24px 0 0 0;">
+            This code expires in an hour. If you didn&rsquo;t request it, you can safely ignore this email.
+          </p>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

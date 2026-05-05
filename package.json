@@ -29,6 +29,10 @@
     "supabase": "^2.98.1",
     "typescript": "^5.4.0"
   },
+  "//overrides": "react-native@0.81.5 ships react-native-renderer at 19.1.0, but Expo CLI's `expo install --fix` thinks SDK 54 wants react@19.2.5. The two have to match exactly or hooks blow up at render time. We pin react to 19.1.0 so the renderer and React agree.",
+  "overrides": {
+    "react": "19.1.0"
+  },
   "engines": {
     "node": ">=20.0.0",
     "npm": ">=10.0.0"
