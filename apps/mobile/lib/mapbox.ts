@@ -1,13 +1,94 @@
 /**
  * Mapbox helpers.
  *
- * - geocode(query, country: 'GB' | 'IE'): forward geocoding (postcode/Eircode/town).
- * - reverseGeocode(lng, lat): for "use my location" address display.
- * - directionsDeepLink(origin, destination): builds a deep link to the
- *   user's preferred maps app (Apple Maps on iOS, Google Maps on Android,
- *   user-overridable in Profile).
+ * For now we expose just `geocode(query, country)` — forward geocoding for
+ * postcode / Eircode entry during onboarding. Reverse geocoding and the
+ * directions deep link will live here when we need them.
  *
- * Public token is read from EXPO_PUBLIC_MAPBOX_PUBLIC_TOKEN.
+ * Public token lives in EXPO_PUBLIC_MAPBOX_PUBLIC_TOKEN and is safe to ship
+ * in the mobile bundle. Free-tier covers 100k requests/month, plenty for us.
  */
 
-export {};
+import type { CountryCode } from '@/types/domain';
+
+const TOKEN = process.env.EXPO_PUBLIC_MAPBOX_PUBLIC_TOKEN;
+
+export type GeocodeResult = {
+  /** Lon/lat as Mapbox returns them — note the order. */
+  lng: number;
+  lat: number;
+  /** A human-friendly version of the matched place. */
+  placeName: string;
+  /** Whatever Mapbox decided was the matched feature type ('postcode', etc). */
+  featureType: string;
+};
+
+export class MapboxNotConfiguredError extends Error {
+  constructor() {
+    super(
+      '[mapbox] EXPO_PUBLIC_MAPBOX_PUBLIC_TOKEN is missing or unset. Add a Mapbox public token to apps/mobile/.env and restart Metro.',
+    );
+    this.name = 'MapboxNotConfiguredError';
+  }
+}
+
+/**
+ * Forward-geocode a free-text query (we mostly use postcodes / Eircodes).
+ *
+ * `country` biases results to one of our two markets — Mapbox returns
+ * country-suffixed results otherwise, e.g. "BT1 1AA, Belfast, Northern
+ * Ireland, United Kingdom" looks fine for NI but the same code somewhere
+ * else in the UK would also match. Country biasing avoids the wrong-region
+ * trap.
+ *
+ * Returns `null` on no match. Throws on network or API errors so callers
+ * can decide whether to retry.
+ */
+export async function geocode(
+  query: string,
+  country: CountryCode,
+): Promise<GeocodeResult | null> {
+  if (!TOKEN || TOKEN.startsWith('pk.your_')) {
+    throw new MapboxNotConfiguredError();
+  }
+
+  const trimmed = query.trim();
+  if (!trimmed) return null;
+
+  // Mapbox uses ISO 3166-1 alpha-2 country codes; map our app codes onto those.
+  // 'GB-NIR' covers Northern Ireland, which is part of the UK from Mapbox's
+  // perspective, hence 'GB'.
+  const mapboxCountry = country === 'GB-NIR' ? 'GB' : 'IE';
+
+  // The endpoint encodes the query in the path, so we have to encodeURIComponent.
+  const url =
+    `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(trimmed)}.json` +
+    `?country=${mapboxCountry}` +
+    `&types=postcode,address,place` +
+    `&limit=1` +
+    `&access_token=${TOKEN}`;
+
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`[mapbox] geocode failed: ${response.status} ${response.statusText}`);
+  }
+
+  const data: {
+    features: Array<{
+      center: [number, number];
+      place_name: string;
+      place_type: string[];
+    }>;
+  } = await response.json();
+
+  const top = data.features[0];
+  if (!top) return null;
+
+  const [lng, lat] = top.center;
+  return {
+    lng,
+    lat,
+    placeName: top.place_name,
+    featureType: top.place_type[0] ?? 'unknown',
+  };
+}

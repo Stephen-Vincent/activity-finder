@@ -31,7 +31,7 @@ import { StatusBar } from 'expo-status-bar';
 import { AuthProvider, useAuth } from '@/components/providers/AuthProvider';
 
 function AuthGate({ children }: { children: React.ReactNode }) {
-  const { session, loading } = useAuth();
+  const { session, profile, loading, profileLoading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
 
@@ -42,15 +42,26 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
     const firstSegment = segments[0];
     const inAuthGroup = firstSegment === 'auth';
+    const onOnboarding = firstSegment === 'onboarding';
 
-    if (!session && !inAuthGroup) {
-      // Signed out and looking at a protected screen → go to sign-in.
-      router.replace('/auth/sign-in');
-    } else if (session && inAuthGroup) {
-      // Signed in but somehow still on the auth screens → go home.
+    if (!session) {
+      if (!inAuthGroup) router.replace('/auth/sign-in');
+      return;
+    }
+
+    // Signed in. We need the profile to decide between onboarding and tabs.
+    // While it's still loading we wait — the OS splash / current screen is
+    // fine for a beat, and bouncing twice would feel janky.
+    if (profileLoading || !profile) return;
+
+    const needsOnboarding = !profile.homePostcode;
+
+    if (needsOnboarding && !onOnboarding) {
+      router.replace('/onboarding');
+    } else if (!needsOnboarding && (inAuthGroup || onOnboarding)) {
       router.replace('/(tabs)/home');
     }
-  }, [session, loading, segments, router]);
+  }, [session, profile, loading, profileLoading, segments, router]);
 
   return <>{children}</>;
 }

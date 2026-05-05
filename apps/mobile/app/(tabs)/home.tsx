@@ -24,7 +24,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/components/providers/AuthProvider';
 
 export default function HomeScreen() {
-  const { user, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
   // Synchronous lock — see the matching comment in sign-in.tsx. Stops a
   // double-tap from firing two signOut calls in the brief window before
@@ -48,8 +48,13 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.container}>
-        <Text style={styles.greeting}>You&apos;re signed in</Text>
+        <Text style={styles.greeting}>
+          {profile?.displayName ? `Hi, ${profile.displayName}` : "You're signed in"}
+        </Text>
         {user?.email ? <Text style={styles.email}>{user.email}</Text> : null}
+        {profile?.homePostcode ? (
+          <Text style={styles.email}>{profile.homePostcode}</Text>
+        ) : null}
         <Text style={styles.note}>
           The real Home tab — weather, today&apos;s picks, school-holiday card — comes later. This
           stub is just here so we can verify sign-in and sign-out end to end.
