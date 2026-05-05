@@ -8,7 +8,7 @@
  *   4. display_name  — what should we call you?
  *   5. marketing     — single opt-in checkbox; saves the whole profile
  *   6. children_list — list of added children, "add" or "done"
- *   7. children_add  — nickname + DOB form
+ *   7. children_add  — nickname + DOB form (uses shared ChildAddForm)
  *   8. done          — brief "all set" screen, then refreshProfile()
  *
  * On step 5 ("marketing") we do the single UPDATE to public.users with
@@ -19,13 +19,16 @@
  * AuthGate watches profile.homePostcode. The moment we save it, AuthGate
  * will start trying to bounce us to /(tabs)/home — so we only let it do
  * that *after* the children step, by treating /onboarding as a valid
- * destination until refreshProfile is called from the 'done' step. The
- * gate logic in _layout.tsx already allows /onboarding while signed in.
+ * destination until refreshProfile is called from the 'done' step.
+ *
+ * Reusable bits — country card, child add form — come from
+ * apps/mobile/components/* so the Profile tab uses the same widgets.
  */
 
 import { useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -42,7 +45,14 @@ import { supabase } from '@/lib/supabase';
 import { geocode, MapboxNotConfiguredError, type GeocodeResult } from '@/lib/mapbox';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useChildren } from '@/hooks/useChildren';
-import type { CountryCode } from '@/types/domain';
+import { CountryChoice } from '@/components/forms/CountryChoice';
+import { ChildAddForm } from '@/components/children/ChildAddForm';
+import { UseLocationButton, type UseLocationResult } from '@/components/forms/UseLocationButton';
+import type { Child, CountryCode } from '@/types/domain';
+
+const OFF_ISLAND_TITLE = 'We only cover Ireland for now';
+const OFF_ISLAND_BODY =
+  "Activity Finder is currently set up for Northern Ireland and the Republic of Ireland. We're hoping to expand later — for now you can still enter a postcode or Eircode manually if you'd like to browse activities in those areas.";
 
 type Step =
   | 'welcome'
@@ -72,24 +82,35 @@ export default function OnboardingScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const inFlight = useRef(false);
 
-  // Add-child form state
-  const [childNickname, setChildNickname] = useState('');
-  const [dobDay, setDobDay] = useState('');
-  const [dobMonth, setDobMonth] = useState('');
-  const [dobYear, setDobYear] = useState('');
-
   // ---- step handlers ---------------------------------------------------------
-
-  function goWelcomeToCountry() {
-    setErrorMessage(null);
-    setStep('country');
-  }
 
   function pickCountry(value: CountryCode) {
     setCountry(value);
-    // Clear any previously geocoded postcode if the user changes country.
     setPostcodeResult(null);
     setStep('postcode');
+  }
+
+  /**
+   * The user tapped "Use my current location" and Mapbox confirmed they're
+   * on the island of Ireland. Update the country (it might differ from what
+   * they picked in step 2 — e.g. they picked NI but they're actually in
+   * Dublin), set the postcode, and seed the geocode result so the
+   * confirmation card and Continue button appear.
+   */
+  function handleLocationResult(r: UseLocationResult) {
+    setCountry(r.country);
+    setPostcode(r.postcode);
+    setPostcodeResult({
+      lng: r.lng,
+      lat: r.lat,
+      placeName: r.placeName,
+      featureType: 'postcode',
+    });
+    setErrorMessage(null);
+  }
+
+  function showOffIslandAlert() {
+    Alert.alert(OFF_ISLAND_TITLE, OFF_ISLAND_BODY, [{ text: 'OK' }]);
   }
 
   async function checkPostcode() {
@@ -122,16 +143,6 @@ export default function OnboardingScreen() {
     } finally {
       setPostcodeChecking(false);
     }
-  }
-
-  function postcodeContinue() {
-    if (!postcodeResult) return;
-    setStep('display_name');
-  }
-
-  function displayNameContinue() {
-    if (!displayName.trim()) return;
-    setStep('marketing');
   }
 
   async function saveProfile() {
@@ -170,58 +181,6 @@ export default function OnboardingScreen() {
     setStep('children_list');
   }
 
-  function startAddChild() {
-    setChildNickname('');
-    setDobDay('');
-    setDobMonth('');
-    setDobYear('');
-    setErrorMessage(null);
-    setStep('children_add');
-  }
-
-  async function saveChild() {
-    if (inFlight.current) return;
-    const nickname = childNickname.trim();
-    if (!nickname) {
-      setErrorMessage('Please add a name or nickname.');
-      return;
-    }
-    const day = Number(dobDay);
-    const month = Number(dobMonth);
-    const year = Number(dobYear);
-    if (!day || !month || !year) {
-      setErrorMessage('Please fill in the day, month and year of birth.');
-      return;
-    }
-    if (day < 1 || day > 31 || month < 1 || month > 12) {
-      setErrorMessage('That date doesn’t look right.');
-      return;
-    }
-    const thisYear = new Date().getFullYear();
-    if (year < thisYear - 21 || year > thisYear) {
-      setErrorMessage('Year of birth seems off — please check.');
-      return;
-    }
-    const dob = `${year.toString().padStart(4, '0')}-${month.toString().padStart(2, '0')}-${day
-      .toString()
-      .padStart(2, '0')}`;
-
-    inFlight.current = true;
-    setBusy(true);
-    setErrorMessage(null);
-
-    const child = await childrenHook.addChild({ nickname, dob });
-
-    setBusy(false);
-    inFlight.current = false;
-
-    if (!child) {
-      setErrorMessage(childrenHook.error ?? 'Could not save that just now.');
-      return;
-    }
-    setStep('children_list');
-  }
-
   async function finishOnboarding() {
     if (inFlight.current) return;
     inFlight.current = true;
@@ -230,8 +189,6 @@ export default function OnboardingScreen() {
     // Tiny celebratory delay before the gate yanks us to home.
     await new Promise((resolve) => setTimeout(resolve, 600));
     await refreshProfile();
-    // AuthGate will now see homePostcode is set and we're on /onboarding,
-    // and it will router.replace us to /(tabs)/home. Nothing more to do.
     setBusy(false);
     inFlight.current = false;
   }
@@ -244,11 +201,8 @@ export default function OnboardingScreen() {
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-        >
-          {step === 'welcome' && <WelcomeStep onContinue={goWelcomeToCountry} />}
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+          {step === 'welcome' && <WelcomeStep onContinue={() => setStep('country')} />}
 
           {step === 'country' && <CountryStep onPick={pickCountry} />}
 
@@ -264,11 +218,14 @@ export default function OnboardingScreen() {
               result={postcodeResult}
               error={errorMessage}
               onCheck={checkPostcode}
-              onContinue={postcodeContinue}
+              onContinue={() => setStep('display_name')}
               onBack={() => {
                 setErrorMessage(null);
                 setStep('country');
               }}
+              onLocationResult={handleLocationResult}
+              onOffIsland={showOffIslandAlert}
+              onLocationError={(msg) => setErrorMessage(msg)}
             />
           )}
 
@@ -276,7 +233,7 @@ export default function OnboardingScreen() {
             <DisplayNameStep
               displayName={displayName}
               setDisplayName={setDisplayName}
-              onContinue={displayNameContinue}
+              onContinue={() => setStep('marketing')}
               onBack={() => setStep('postcode')}
             />
           )}
@@ -296,7 +253,7 @@ export default function OnboardingScreen() {
             <ChildrenListStep
               children={childrenHook.children ?? []}
               loading={childrenHook.loading && !childrenHook.children}
-              onAdd={startAddChild}
+              onAdd={() => setStep('children_add')}
               onRemove={(id) => {
                 void childrenHook.removeChild(id);
               }}
@@ -305,23 +262,17 @@ export default function OnboardingScreen() {
           )}
 
           {step === 'children_add' && (
-            <ChildrenAddStep
-              nickname={childNickname}
-              setNickname={setChildNickname}
-              dobDay={dobDay}
-              dobMonth={dobMonth}
-              dobYear={dobYear}
-              setDobDay={setDobDay}
-              setDobMonth={setDobMonth}
-              setDobYear={setDobYear}
-              busy={busy}
-              error={errorMessage}
-              onSave={saveChild}
-              onCancel={() => {
-                setErrorMessage(null);
-                setStep('children_list');
-              }}
-            />
+            <View>
+              <Text style={styles.title}>Add a child</Text>
+              <ChildAddForm
+                onSave={async (input): Promise<Child | null> => {
+                  const child = await childrenHook.addChild(input);
+                  if (child) setStep('children_list');
+                  return child;
+                }}
+                onCancel={() => setStep('children_list')}
+              />
+            </View>
           )}
 
           {step === 'done' && <DoneStep />}
@@ -332,7 +283,7 @@ export default function OnboardingScreen() {
 }
 
 // ---------------------------------------------------------------------------
-// Step components — kept inline because they're all small and only used here.
+// Step components — kept inline because they're each small and only used here.
 // ---------------------------------------------------------------------------
 
 function WelcomeStep({ onContinue }: { onContinue: () => void }) {
@@ -358,20 +309,16 @@ function CountryStep({ onPick }: { onPick: (c: CountryCode) => void }) {
       <Text style={styles.subtitle}>
         We use this to set up the right currency and to suggest places near you.
       </Text>
-      <Pressable
+      <CountryChoice
+        label="Northern Ireland"
+        sub="Postcodes like BT1 1AA · prices in £"
         onPress={() => onPick('GB-NIR')}
-        style={({ pressed }) => [styles.choice, pressed && styles.choicePressed]}
-      >
-        <Text style={styles.choiceTitle}>Northern Ireland</Text>
-        <Text style={styles.choiceSub}>Postcodes like BT1 1AA · prices in £</Text>
-      </Pressable>
-      <Pressable
+      />
+      <CountryChoice
+        label="Republic of Ireland"
+        sub="Eircodes like D02 X285 · prices in €"
         onPress={() => onPick('IE')}
-        style={({ pressed }) => [styles.choice, pressed && styles.choicePressed]}
-      >
-        <Text style={styles.choiceTitle}>Republic of Ireland</Text>
-        <Text style={styles.choiceSub}>Eircodes like D02 X285 · prices in €</Text>
-      </Pressable>
+      />
     </View>
   );
 }
@@ -386,6 +333,9 @@ function PostcodeStep(props: {
   onCheck: () => void;
   onContinue: () => void;
   onBack: () => void;
+  onLocationResult: (r: UseLocationResult) => void;
+  onOffIsland: () => void;
+  onLocationError: (msg: string) => void;
 }) {
   const isNI = props.country === 'GB-NIR';
   const placeholder = isNI ? 'BT1 1AA' : 'D02 X285';
@@ -395,6 +345,14 @@ function PostcodeStep(props: {
       <Text style={styles.subtitle}>
         We&rsquo;ll use this to sort places by how far they are from you. We never share it.
       </Text>
+
+      <UseLocationButton
+        onResult={props.onLocationResult}
+        onOffIsland={props.onOffIsland}
+        onError={props.onLocationError}
+      />
+      <Text style={styles.dividerLabel}>Or enter manually</Text>
+
       <Text style={styles.label}>{isNI ? 'Postcode' : 'Eircode'}</Text>
       <TextInput
         value={props.postcode}
@@ -459,11 +417,7 @@ function DisplayNameStep(props: {
         onSubmitEditing={props.onContinue}
         style={styles.input}
       />
-      <PrimaryButton
-        label="Continue"
-        onPress={props.onContinue}
-        disabled={!props.displayName.trim()}
-      />
+      <PrimaryButton label="Continue" onPress={props.onContinue} disabled={!props.displayName.trim()} />
       <SecondaryButton label="Back" onPress={props.onBack} />
     </View>
   );
@@ -535,7 +489,7 @@ function ChildrenListStep(props: {
 
       <Pressable
         onPress={props.onAdd}
-        style={({ pressed }) => [styles.addChildButton, pressed && styles.choicePressed]}
+        style={({ pressed }) => [styles.addChildButton, pressed && { opacity: 0.85 }]}
       >
         <Text style={styles.addChildText}>+ Add {props.children.length ? 'another' : 'a child'}</Text>
       </Pressable>
@@ -544,79 +498,6 @@ function ChildrenListStep(props: {
         label={props.children.length ? 'All done' : 'Skip for now'}
         onPress={props.onContinue}
       />
-    </View>
-  );
-}
-
-function ChildrenAddStep(props: {
-  nickname: string;
-  setNickname: (v: string) => void;
-  dobDay: string;
-  dobMonth: string;
-  dobYear: string;
-  setDobDay: (v: string) => void;
-  setDobMonth: (v: string) => void;
-  setDobYear: (v: string) => void;
-  busy: boolean;
-  error: string | null;
-  onSave: () => void;
-  onCancel: () => void;
-}) {
-  return (
-    <View>
-      <Text style={styles.title}>Add a child</Text>
-      <Text style={styles.label}>Name or nickname</Text>
-      <TextInput
-        value={props.nickname}
-        onChangeText={props.setNickname}
-        placeholder="Eg. Ava"
-        placeholderTextColor="#9aa0a6"
-        autoCapitalize="words"
-        autoCorrect={false}
-        editable={!props.busy}
-        style={styles.input}
-      />
-      <Text style={styles.label}>Date of birth</Text>
-      <View style={styles.dobRow}>
-        <TextInput
-          value={props.dobDay}
-          onChangeText={(v) => props.setDobDay(v.replace(/\D/g, '').slice(0, 2))}
-          placeholder="DD"
-          placeholderTextColor="#9aa0a6"
-          keyboardType="number-pad"
-          maxLength={2}
-          editable={!props.busy}
-          style={[styles.input, styles.dobInput]}
-        />
-        <TextInput
-          value={props.dobMonth}
-          onChangeText={(v) => props.setDobMonth(v.replace(/\D/g, '').slice(0, 2))}
-          placeholder="MM"
-          placeholderTextColor="#9aa0a6"
-          keyboardType="number-pad"
-          maxLength={2}
-          editable={!props.busy}
-          style={[styles.input, styles.dobInput]}
-        />
-        <TextInput
-          value={props.dobYear}
-          onChangeText={(v) => props.setDobYear(v.replace(/\D/g, '').slice(0, 4))}
-          placeholder="YYYY"
-          placeholderTextColor="#9aa0a6"
-          keyboardType="number-pad"
-          maxLength={4}
-          editable={!props.busy}
-          style={[styles.input, styles.dobInputYear]}
-        />
-      </View>
-      {props.error ? <Text style={styles.error}>{props.error}</Text> : null}
-      <PrimaryButton
-        label={props.busy ? '' : 'Save'}
-        onPress={props.onSave}
-        disabled={props.busy}
-        spinner={props.busy}
-      />
-      <SecondaryButton label="Cancel" onPress={props.onCancel} disabled={props.busy} />
     </View>
   );
 }
@@ -698,17 +579,6 @@ const styles = StyleSheet.create({
   primaryText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   secondary: { marginTop: 12, alignItems: 'center', paddingVertical: 8 },
   secondaryText: { color: '#1a73e8', fontSize: 15, fontWeight: '600' },
-  choice: {
-    borderWidth: 1,
-    borderColor: '#d0d4d9',
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 12,
-    backgroundColor: '#fafbfc',
-  },
-  choicePressed: { opacity: 0.85 },
-  choiceTitle: { fontSize: 17, fontWeight: '600', color: '#111' },
-  choiceSub: { fontSize: 13, color: '#666', marginTop: 4 },
   confirmBox: {
     backgroundColor: '#eef6ee',
     borderRadius: 10,
@@ -725,6 +595,15 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   switchLabel: { fontSize: 15, color: '#111', flex: 1, paddingRight: 12 },
+  dividerLabel: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+    marginVertical: 4,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   childRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -745,8 +624,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   addChildText: { color: '#1a73e8', fontSize: 15, fontWeight: '600' },
-  dobRow: { flexDirection: 'row', gap: 8 },
-  dobInput: { flex: 1, textAlign: 'center' },
-  dobInputYear: { flex: 1.5, textAlign: 'center' },
   doneCenter: { paddingTop: 80, alignItems: 'center' },
 });

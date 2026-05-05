@@ -10,11 +10,10 @@
  *
  * Pulls from useVenues, useWeather, useChildren, useSchoolTerms hooks.
  *
- * Right now this is a placeholder so we can confirm the auth flow worked
- * end-to-end: it shows the signed-in user's email and offers a sign-out
- * button. The sign-out button will move to the Profile tab once that screen
- * exists — leaving it here for now so we can test on the very first signed-in
- * screen the user sees.
+ * For now this is a thin placeholder with the user's name, home postcode, and
+ * a sign-out button (also lives in Profile, kept on Home so it's accessible
+ * from the first signed-in screen too). The greeting + sign-out will stay
+ * here even after the real Home is built.
  */
 
 import { useRef, useState } from 'react';
@@ -24,11 +23,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/components/providers/AuthProvider';
 
 export default function HomeScreen() {
-  const { user, profile, signOut } = useAuth();
+  const { profile, signOut } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
-  // Synchronous lock — see the matching comment in sign-in.tsx. Stops a
-  // double-tap from firing two signOut calls in the brief window before
-  // React re-renders with the disabled state.
+  // Synchronous lock against double-taps — see the matching comment in
+  // sign-in.tsx for the pattern.
   const inFlight = useRef(false);
 
   async function handleSignOut() {
@@ -38,9 +36,8 @@ export default function HomeScreen() {
     try {
       await signOut();
     } finally {
-      // We don't unset signingOut on success — onAuthStateChange will fire
-      // and the root will redirect us off this screen, so leaving the button
-      // disabled until then is the right UX.
+      // Don't reset on success — onAuthStateChange will navigate us away,
+      // and leaving the button disabled until then prevents a double-tap.
       inFlight.current = false;
     }
   }
@@ -51,13 +48,9 @@ export default function HomeScreen() {
         <Text style={styles.greeting}>
           {profile?.displayName ? `Hi, ${profile.displayName}` : "You're signed in"}
         </Text>
-        {user?.email ? <Text style={styles.email}>{user.email}</Text> : null}
-        {profile?.homePostcode ? (
-          <Text style={styles.email}>{profile.homePostcode}</Text>
-        ) : null}
+        {profile?.homePostcode ? <Text style={styles.subtle}>{profile.homePostcode}</Text> : null}
         <Text style={styles.note}>
-          The real Home tab — weather, today&apos;s picks, school-holiday card — comes later. This
-          stub is just here so we can verify sign-in and sign-out end to end.
+          The real Home tab — weather, today&apos;s picks, school-holiday card — comes later.
         </Text>
 
         <Pressable
@@ -81,31 +74,11 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  container: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 24,
-  },
-  greeting: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: '#111',
-  },
-  email: {
-    fontSize: 16,
-    color: '#444',
-    marginTop: 4,
-  },
-  note: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: '#666',
-    marginTop: 16,
-  },
+  safe: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1, paddingHorizontal: 24, paddingTop: 24 },
+  greeting: { fontSize: 26, fontWeight: '700', color: '#111' },
+  subtle: { fontSize: 16, color: '#444', marginTop: 4 },
+  note: { fontSize: 14, lineHeight: 20, color: '#666', marginTop: 16 },
   button: {
     marginTop: 32,
     backgroundColor: '#111',
@@ -116,15 +89,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     minWidth: 140,
   },
-  buttonDisabled: {
-    backgroundColor: '#9aa0a6',
-  },
-  buttonPressed: {
-    opacity: 0.85,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  buttonDisabled: { backgroundColor: '#9aa0a6' },
+  buttonPressed: { opacity: 0.85 },
+  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });

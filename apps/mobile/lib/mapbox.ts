@@ -1,12 +1,12 @@
 /**
  * Mapbox helpers.
  *
- * For now we expose just `geocode(query, country)` — forward geocoding for
- * postcode / Eircode entry during onboarding. Reverse geocoding and the
- * directions deep link will live here when we need them.
+ * - geocode(query, country)            forward: postcode / Eircode → place + lat/lng.
+ * - reverseGeocode(lng, lat)           reverse: GPS → postcode + country.
+ * - classifyLocation(country, postcode) NI / ROI / off-island.
  *
  * Public token lives in EXPO_PUBLIC_MAPBOX_PUBLIC_TOKEN and is safe to ship
- * in the mobile bundle. Free-tier covers 100k requests/month, plenty for us.
+ * in the mobile bundle. Free tier covers 100k requests/month, plenty for us.
  */
 
 import type { CountryCode } from '@/types/domain';
@@ -91,4 +91,96 @@ export async function geocode(
     placeName: top.place_name,
     featureType: top.place_type[0] ?? 'unknown',
   };
+}
+
+// ---------------------------------------------------------------------------
+// Reverse geocoding — used by "Use my current location" in onboarding/profile.
+// ---------------------------------------------------------------------------
+
+export type ReverseGeocodeResult = {
+  /** ISO postcode-ish string ("BT1 1AA", "D02 X285") if Mapbox has one. */
+  postcode: string | null;
+  /** Mapbox's country `short_code`, lowercased (e.g. 'gb', 'ie'). */
+  countryShortCode: string | null;
+  /** Mapbox's region text — e.g. "Northern Ireland", "England", "County Dublin". */
+  region: string | null;
+  /** Friendly full-form ("BT1 1AA, Belfast, Northern Ireland, United Kingdom"). */
+  placeName: string;
+};
+
+/**
+ * Reverse-geocode a (lng, lat) to a postcode + country.
+ *
+ * We ask Mapbox specifically for `postcode` features so the top result is the
+ * postcode that contains the GPS coord, not the building. If the area has no
+ * postcode (rare in NI/ROI but possible at sea), `postcode` will be null and
+ * the caller should fall back to manual entry.
+ */
+export async function reverseGeocode(lng: number, lat: number): Promise<ReverseGeocodeResult | null> {
+  if (!TOKEN || TOKEN.startsWith('pk.your_')) {
+    throw new MapboxNotConfiguredError();
+  }
+
+  const url =
+    `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json` +
+    `?types=postcode` +
+    `&limit=1` +
+    `&access_token=${TOKEN}`;
+
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`[mapbox] reverseGeocode failed: ${response.status} ${response.statusText}`);
+  }
+
+  const data: {
+    features: Array<{
+      text: string;
+      place_name: string;
+      place_type: string[];
+      context?: Array<{ id: string; text: string; short_code?: string }>;
+    }>;
+  } = await response.json();
+
+  const top = data.features[0];
+  if (!top) return null;
+
+  // The top feature itself is the postcode (because we asked for types=postcode).
+  const postcode = top.place_type[0] === 'postcode' ? top.text : null;
+
+  // Country and region come from the context array. Country has a short_code,
+  // region usually doesn't.
+  const country = top.context?.find((c) => c.id.startsWith('country.'));
+  const region = top.context?.find((c) => c.id.startsWith('region.'));
+
+  return {
+    postcode,
+    countryShortCode: country?.short_code?.toLowerCase() ?? null,
+    region: region?.text ?? null,
+    placeName: top.place_name,
+  };
+}
+
+/**
+ * Decide whether a reverse-geocode result is in NI, ROI, or off-island.
+ *
+ * NI postcodes start with 'BT' inside the UK (`gb` country code). The ROI
+ * country code is `ie`. Anything else — mainland UK, anywhere outside these
+ * two — counts as off-island. We support showing a polite "we only cover the
+ * island of Ireland for now" message in that case.
+ */
+export type LocationClassification =
+  | { kind: 'on-island'; country: CountryCode }
+  | { kind: 'off-island' };
+
+export function classifyLocation(
+  countryShortCode: string | null,
+  postcode: string | null,
+): LocationClassification {
+  if (countryShortCode === 'ie') {
+    return { kind: 'on-island', country: 'IE' };
+  }
+  if (countryShortCode === 'gb' && postcode?.toUpperCase().startsWith('BT')) {
+    return { kind: 'on-island', country: 'GB-NIR' };
+  }
+  return { kind: 'off-island' };
 }

@@ -38,6 +38,15 @@ import { supabase } from '@/lib/supabase';
 import { parseAuthDeeplink } from '@/lib/auth/deeplink';
 import { profileFromRow, type Profile } from '@/types/domain';
 
+/** Snake_case patch matching the public.users column names. */
+export type ProfilePatch = {
+  display_name?: string | null;
+  home_postcode?: string | null;
+  country_code?: 'GB-NIR' | 'IE' | null;
+  preferred_currency?: 'GBP' | 'EUR' | null;
+  marketing_opt_in?: boolean;
+};
+
 type AuthContextValue = {
   session: Session | null;
   user: User | null;
@@ -48,6 +57,8 @@ type AuthContextValue = {
   profileLoading: boolean;
   /** Re-read the profile from the DB. Call this after onboarding writes. */
   refreshProfile: () => Promise<void>;
+  /** UPDATE public.users with the given patch and refresh the cached profile. */
+  updateProfile: (patch: ProfilePatch) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
 };
 
@@ -105,6 +116,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await loadProfile(userRef.current);
   }, [loadProfile]);
 
+  const updateProfile = useCallback(
+    async (patch: ProfilePatch): Promise<{ error: string | null }> => {
+      const u = userRef.current;
+      if (!u) return { error: 'Not signed in.' };
+      const { error } = await supabase.from('users').update(patch).eq('id', u.id);
+      if (error) return { error: error.message };
+      // Re-read so the new values flow through useAuth without needing the
+      // caller to know about every cached field.
+      await loadProfile(u);
+      return { error: null };
+    },
+    [loadProfile],
+  );
+
   useEffect(() => {
     let active = true;
 
@@ -160,11 +185,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading,
       profileLoading,
       refreshProfile,
+      updateProfile,
       signOut: async () => {
         await supabase.auth.signOut();
       },
     }),
-    [session, profile, loading, profileLoading, refreshProfile],
+    [session, profile, loading, profileLoading, refreshProfile, updateProfile],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

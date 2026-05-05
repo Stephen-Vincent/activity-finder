@@ -31,6 +31,8 @@ export type AddChildInput = {
   notes?: string;
 };
 
+export type UpdateChildInput = Partial<AddChildInput>;
+
 export function useChildren() {
   const { user } = useAuth();
   const [children, setChildren] = useState<Child[] | null>(null);
@@ -102,11 +104,42 @@ export function useChildren() {
     return true;
   }, []);
 
+  const updateChild = useCallback(
+    async (id: string, patch: UpdateChildInput): Promise<Child | null> => {
+      setError(null);
+      // Build the snake_case patch for Supabase. Only forward keys the caller
+      // actually set so undefined values don't clobber existing columns. The
+      // explicit type here matches the columns Supabase will accept on the
+      // children update (anything else would fail the strict typed insert).
+      const dbPatch: { nickname?: string; dob?: string; notes?: string | null } = {};
+      if (patch.nickname !== undefined) dbPatch.nickname = patch.nickname;
+      if (patch.dob !== undefined) dbPatch.dob = patch.dob;
+      if (patch.notes !== undefined) dbPatch.notes = patch.notes;
+
+      const { data, error: updateError } = await supabase
+        .from('children')
+        .update(dbPatch)
+        .eq('id', id)
+        .select('*')
+        .single();
+
+      if (updateError || !data) {
+        setError(updateError?.message ?? 'Failed to update child.');
+        return null;
+      }
+      const next = childFromRow(data);
+      setChildren((prev) => (prev ? prev.map((c) => (c.id === id ? next : c)) : prev));
+      return next;
+    },
+    [],
+  );
+
   return {
     children,
     loading,
     error,
     addChild,
+    updateChild,
     removeChild,
     refresh,
   };

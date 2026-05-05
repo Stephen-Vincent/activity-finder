@@ -71,5 +71,4 @@ I'd lean **Profile tab next** — it gives us a clean home for sign-out, lets us
 
 ## Commits / PRs
 
-- (Filled in at commit time. Commit message likely: `feat(onboarding): country, postcode, name, marketing, children`.)
-- This commit also rolls in the close-out edits to [`docs/sessions/2026-05-05-auth.md`](./2026-05-05-auth.md) — the commit hash for the auth session — that didn't make it into commit `e163320`.
+- `62c8d1f` — `feat(onboarding): country, postcode, name, marketing, children`. Pushed cleanly to `origin/main`. Also rolled in the close-out edits to [`docs/sessions/2026-05-05-auth.md`](./2026-05-05-auth.md) that didn't make it into commit `e163320`.

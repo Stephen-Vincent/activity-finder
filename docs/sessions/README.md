@@ -34,6 +34,7 @@ Keep entries short. A session log isn't a design doc — if something needs deep
 
 The most recent entry is the most useful. Newest first:
 
+- [2026-05-05 — Profile tab](./2026-05-05-profile-3.md)
 - [2026-05-05 — Onboarding: capture profile + children](./2026-05-05-onboarding-2.md)
 - [2026-05-05 — Auth: 6-digit OTP sign-in flow](./2026-05-05-auth.md)
 - [2026-05-04 — Schema: tables, RLS, and RPCs](./2026-05-04-schema-2.md)
